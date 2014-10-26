@@ -1,7 +1,7 @@
 all:
 	clear
 	mkdir -p build/
-	gcc src/main.c -o build/erp_udp
+	gcc src/erp_udp.c -o build/erp_udp
 	gcc src/udp_server.c -o build/udp_server
 	gcc src/udp_client.c -o build/udp_client
 server:
