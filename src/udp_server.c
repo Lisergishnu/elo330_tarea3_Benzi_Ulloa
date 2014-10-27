@@ -1,6 +1,10 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define PORT 9001
 
 int main(int argc, char**argv)
 {
@@ -14,9 +18,10 @@ int main(int argc, char**argv)
    bzero(&servaddr,sizeof(servaddr));
    servaddr.sin_family = AF_INET;
    servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-   servaddr.sin_port=htons(32000);
+   servaddr.sin_port=htons(PORT);
    bind(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
 
+   printf("Server started on port: %d\n", PORT);
    for (;;)
    {
       len = sizeof(cliaddr);

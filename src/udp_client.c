@@ -1,8 +1,10 @@
-/* Sample UDP client */
-
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define PORT 9000
 
 int main(int argc, char* argv[])
 {
@@ -22,8 +24,9 @@ int main(int argc, char* argv[])
    bzero(&servaddr,sizeof(servaddr));
    servaddr.sin_family = AF_INET;
    servaddr.sin_addr.s_addr=inet_addr(argv[1]);
-   servaddr.sin_port=htons(32000);
-
+   servaddr.sin_port=htons(PORT);
+   
+   printf("Client started on port: %d\n", PORT);
    while (fgets(sendline, 10000,stdin) != NULL)
    {
       sendto(sockfd,sendline,strlen(sendline),0,
