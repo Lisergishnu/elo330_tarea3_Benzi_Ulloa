@@ -14,8 +14,8 @@ int delay_avg, delay_variation;
 int loss_percent, local_port, remote_port;
 char remote_host[30] = "127.0.0.1";
 
-void* client(void*);
-void* server(void*);
+void* senderThread(void*);
+void* recieverThread(void*);
 void initList(char**, int);
 void lagger(char*, double, double);
 
@@ -67,12 +67,12 @@ int main(int argc, char* argv[])
     /* Creacion de los Thread */
     pthread_t sender, listener;
     int t_s, t_l;
-    if(pthread_create(&sender, NULL, client, NULL) != 0)
+    if(pthread_create(&sender, NULL, senderThread, NULL) != 0)
         {
             printf("Error al crear Thread Sender\n");
             exit(1);
         }
-    if(pthread_create(&listener, NULL, server, NULL) != 0)
+    if(pthread_create(&listener, NULL, recieverThread, NULL) != 0)
         {
             printf("Error al crear Thread Listener\n");
             exit(1);
@@ -81,7 +81,7 @@ int main(int argc, char* argv[])
     pthread_join(listener, NULL);
 }
 
-void* client(void* arg)
+void* senderThread(void* arg)
 {
     /* Cliente UDP, establece una conexion a un servidor con la IP especificada ipAddr */
     printf("Thread Client Started on port: %d\n", remote_port);
@@ -136,7 +136,7 @@ void* client(void* arg)
     pthread_exit((void*)0);
 }
 
-void* server(void* arg)
+void* recieverThread(void* arg)
 {
     printf("Thread Server Started on port: %d\n", local_port);
     int sockfd, n;
