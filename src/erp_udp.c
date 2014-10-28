@@ -165,8 +165,15 @@ void* recieverThread(void* arg)
                 printf("ERROR: %d\n", error);
             else
                 {
+                  if (strcmp(mesgList[mesgIndex],"") == 0)
                     mesgList[mesgIndex] = mesg;
-                    mesgIndex=(mesgIndex+1)%LIST_SIZE;
+                  else
+                  {
+                    printf("Buffer pos %d overwritten\n",mesgIndex);
+                    sendIndex = (sendIndex+1) % LIST_SIZE;
+                  }
+                  mesgIndex=(mesgIndex+1)%LIST_SIZE;
+
                 }
             pthread_mutex_unlock( &listMutex );
 
