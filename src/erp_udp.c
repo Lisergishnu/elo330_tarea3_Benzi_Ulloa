@@ -224,7 +224,7 @@ int randsafe(double *ranp)
     static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
     int error= 0;
 
-    if (error = pthread_mutex_lock(&lock))
+    if ((error = pthread_mutex_lock(&lock)))
         return error;
     *ranp = (double)rand()/RAND_MAX;
     return pthread_mutex_unlock(&lock);
