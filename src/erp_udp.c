@@ -13,8 +13,8 @@
 /* Estructura que describe un paquete recibido / enviado */
 typedef struct pkg
 {
-  char msg[MSG_SIZE];
-  time_t timestamp;
+    char msg[MSG_SIZE];
+    struct timespec timestamp;
 } datagram;
 
 int delay_avg, delay_variation;
@@ -125,8 +125,12 @@ void* senderThread(void* arg)
 
                             if(strcmp(mesg, "") != 0)
                                 sendto(sockfd, mesg, strlen(mesg), 0,(struct sockaddr*) &servaddr, sizeof(servaddr));
-                            printf("Mesg: %s\nmesgList[%d]: %s\nOutbound timestamp: %s\n", mesg, sendIndex,
-                                mesgList[sendIndex]->msg, ctime(&mesgList[sendIndex]->timestamp));
+
+                            struct timespec outTime;
+                            clock_gettime(CLOCK_MONOTONIC,&outTime);
+
+                            printf("Mesg: %s\nmesgList[%d]: %s\nOutbound timestamp: %lld.%09ld [s]\n", mesg, sendIndex,
+                                   mesgList[sendIndex]->msg, (long long) outTime.tv_sec,outTime.tv_nsec);
                             free(mesgList[sendIndex]);
                             mesgList[sendIndex] = NULL;
                             sendIndex = (sendIndex+1) % LIST_SIZE;
@@ -167,31 +171,31 @@ void* recieverThread(void* arg)
                 fprintf(stderr,"ERROR: %d\n", error);
             else
                 {
-                  if (NULL == mesgList[mesgIndex])
-                  {
-                    datagram *n = malloc(sizeof(datagram));
-                    if (NULL == n)
-                    {
-                      fprintf(stderr,"ERROR: Couldn't allocate memory for datagram\n");
-                      abort();
-                    }
-                    strcpy(n->msg,mesg);
-                    n->timestamp = time(NULL);
-                    mesgList[mesgIndex] = n;
+                    if (NULL == mesgList[mesgIndex])
+                        {
+                            datagram *n = malloc(sizeof(datagram));
+                            if (NULL == n)
+                                {
+                                    fprintf(stderr,"ERROR: Couldn't allocate memory for datagram\n");
+                                    abort();
+                                }
+                            strcpy(n->msg,mesg);
+                            clock_gettime(CLOCK_MONOTONIC,&n->timestamp);
+                            mesgList[mesgIndex] = n;
 
-                    printf("-------------------------------------------------------\n");
-                    printf("Received the following:\n");
-                    printf("%s\n",mesgList[mesgIndex]->msg);
-                    printf("Inbound timestamp: %s\n", ctime(&mesgList[mesgIndex]->timestamp));
-                    printf("-------------------------------------------------------\n");
+                            printf("-------------------------------------------------------\n");
+                            printf("Received the following:\n");
+                            printf("%s",mesgList[mesgIndex]->msg);
+                            printf("Inbound timestamp: %lld.%09ld [s]\n", (long long) mesgList[mesgIndex]->timestamp.tv_sec, mesgList[mesgIndex]->timestamp.tv_nsec);
+                            printf("-------------------------------------------------------\n");
 
-                  }
-                  else
-                  {
-                    printf("Buffer pos %d overwritten\n",mesgIndex);
-                    sendIndex = (sendIndex+1) % LIST_SIZE;
-                  }
-                  mesgIndex=(mesgIndex+1)%LIST_SIZE;
+                        }
+                    else
+                        {
+                            printf("Buffer pos %d overwritten\n",mesgIndex);
+                            sendIndex = (sendIndex+1) % LIST_SIZE;
+                        }
+                    mesgIndex=(mesgIndex+1)%LIST_SIZE;
 
                 }
             pthread_mutex_unlock( &listMutex );
@@ -202,50 +206,50 @@ void* recieverThread(void* arg)
 
 void initList(datagram ** list, int size)
 {
-  int i;
-  for(i=0; i<size; i++)
-  {
-    list[i] = NULL;
-  }
+    int i;
+    for(i=0; i<size; i++)
+        {
+            list[i] = NULL;
+        }
 }
 
 void lagger(double avg, double variation)
 {
-  double random;
-  double delay;
+    double random;
+    double delay;
 
-  if(randsafe(&random) != 0)
-    return;
-  printf("Random created = %f\n", random);
+    if(randsafe(&random) != 0)
+        return;
+    printf("Random created = %f\n", random);
 
-  /* Le doy un 2.5% mas de rango a la variacion total hacia arriba y hacia abajo */
-  double fixed_variation = variation*(1 + (double)loss_percent/100);
-  delay = 2*random*fixed_variation + avg - fixed_variation;
+    /* Le doy un 2.5% mas de rango a la variacion total hacia arriba y hacia abajo */
+    double fixed_variation = variation*(1 + (double)loss_percent/100);
+    delay = 2*random*fixed_variation + avg - fixed_variation;
 
-  if(delay > avg + variation || delay < avg - variation)
-  {
-    strcpy(mesg, "");
-    printf("**********************Packet Loss*********************\n");
-  }
-  printf("Delay: %f\n", delay);
+    if(delay > avg + variation || delay < avg - variation)
+        {
+            strcpy(mesg, "");
+            printf("**********************Packet Loss*********************\n");
+        }
+    printf("Delay: %f\n", delay);
 
-  if(delay > 1000)
-  {
-    /* Segun documentacion, no llamar a usleep con mas de 1M us*/
-    printf("Too much lag\n");
-    return;
-  }
+    if(delay > 1000)
+        {
+            /* Segun documentacion, no llamar a usleep con mas de 1M us*/
+            printf("Too much lag\n");
+            return;
+        }
 
-  usleep((int) delay *1000);
+    usleep((int) delay *1000);
 }
 
 int randsafe(double *ranp)
 {
-  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-  int error= 0;
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    int error= 0;
 
-  if ((error = pthread_mutex_lock(&lock)))
-    return error;
-  *ranp = (double)rand()/RAND_MAX;
-  return pthread_mutex_unlock(&lock);
+    if ((error = pthread_mutex_lock(&lock)))
+        return error;
+    *ranp = (double)rand()/RAND_MAX;
+    return pthread_mutex_unlock(&lock);
 }
