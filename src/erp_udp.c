@@ -22,11 +22,13 @@ typedef struct ra
 {
     int sender;
     int reciever;
+    char remote_host[30];
+    int local_port;
+    int remote_port;
 } SocketsInfo;
 
 int delay_avg, delay_variation;
-int loss_percent, local_port, remote_port;
-char remote_host[30] = "127.0.0.1";
+int loss_percent;
 
 void* senderThread(void*);
 void* recieverThread(void*);
@@ -48,34 +50,35 @@ int main(int argc, char* argv[])
     * el server Interno escucha en un puerto X, pasa los datos al clienteInterno, y este mete el lag
     */
 
+    SocketsInfo info;
     /* Lectura de parametros */
     if(argc == 6)
         {
             delay_avg = atoi(argv[1]);
             delay_variation = atoi(argv[2]);
             loss_percent = atoi(argv[3]);
-            local_port = atoi(argv[4]);
-            remote_port = atoi(argv[5]);
+            info.local_port = atoi(argv[4]);
+            strcpy(info.remote_host, "127.0.0.1");
+            info.remote_port = atoi(argv[5]);
         }
     else if(argc == 7)
         {
             delay_avg = atoi(argv[1]);
             delay_variation = atoi(argv[2]);
             loss_percent = atoi(argv[3]);
-            local_port = atoi(argv[4]);
-            strcpy(remote_host, argv[5]);
-            remote_port = atoi(argv[6]);
+            info.local_port = atoi(argv[4]);
+            strcpy(info.remote_host, argv[5]);
+            info.remote_port = atoi(argv[6]);
         }
     else
         {
             printf("Usage:\nerp_udp Delay_avg Delay_variation Loss_percent Local_port [Remote_host] Remote_port\n");
             exit(1);
         }
-    printf("Delay_avg: %d\nDelay_variation: %d\nLoss_percent: %d\nLocal_port: %d\nRemote_host: %s\nRemote_port: %d\n", delay_avg, delay_variation, loss_percent, local_port, remote_host, remote_port);
+    printf("Delay_avg: %d\nDelay_variation: %d\nLoss_percent: %d\nLocal_port: %d\nRemote_host: %s\nRemote_port: %d\n", delay_avg, delay_variation, loss_percent, info.local_port, info.remote_host, info.remote_port);
     initList(mesgList, LIST_SIZE);
 
     /* Creacion de los Thread */
-    SocketsInfo info;
 
     // Se abre el socket para INET, tipo UDP y devuelve el descriptor del socket
     info.sender = socket(AF_INET, SOCK_DGRAM, 0);
@@ -110,10 +113,12 @@ int main(int argc, char* argv[])
 void* senderThread(void* arg)
 {
     /* Cliente UDP, establece una conexion a un servidor con la IP especificada ipAddr */
-    printf("Thread Client Started on port: %d\n", remote_port);
+    SocketsInfo* info = (SocketsInfo*) arg;
+    printf("Thread Client Started on port: %d\n", info->remote_port);
+
 
     // Descriptor del socket
-    int sockfd = ((SocketsInfo*) arg)->sender;
+    int sockfd = info->sender;
     // Direccion del socket
     struct sockaddr_in servaddr;
 
@@ -123,8 +128,8 @@ void* senderThread(void* arg)
 
     // Requisitos minimos de serveaddr para uso posterior
     servaddr.sin_family = AF_INET;
-    servaddr.sin_addr.s_addr = inet_addr(remote_host);
-    servaddr.sin_port = htons(remote_port);
+    servaddr.sin_addr.s_addr = inet_addr(info->remote_host);
+    servaddr.sin_port = htons(info->remote_port);
 
     for(;;)
         {
@@ -159,8 +164,9 @@ void* senderThread(void* arg)
 
 void* recieverThread(void* arg)
 {
-    printf("Thread Server Started on port: %d\n", local_port);
-    int sockfd = ((SocketsInfo*) arg)->reciever, n;
+    SocketsInfo* info = (SocketsInfo*) arg;
+    printf("Thread Server Started on port: %d\n", info->local_port);
+    int sockfd = info->reciever, n;
     struct sockaddr_in servaddr, cliaddr;
     socklen_t len;
 
@@ -169,7 +175,7 @@ void* recieverThread(void* arg)
     // INADDR_ANY: atender a cualquier cliente
     servaddr.sin_family = AF_INET;
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(local_port);
+    servaddr.sin_port = htons(info->local_port);
     // Bindea al descriptor de archivo con el socketaddr del servidor
     bind(sockfd,(struct sockaddr*) &servaddr, sizeof(servaddr));
 
