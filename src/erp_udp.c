@@ -17,6 +17,13 @@ typedef struct pkg
     struct timespec timestamp;
 } datagram;
 
+/* Estructura que describe argumentos para los threads */
+typedef struct ra
+{
+    int sender;
+    int reciever;
+} SocketsInfo;
+
 int delay_avg, delay_variation;
 int loss_percent, local_port, remote_port;
 char remote_host[30] = "127.0.0.1";
@@ -68,13 +75,29 @@ int main(int argc, char* argv[])
     initList(mesgList, LIST_SIZE);
 
     /* Creacion de los Thread */
+    SocketsInfo info;
+
+    // Se abre el socket para INET, tipo UDP y devuelve el descriptor del socket
+    info.sender = socket(AF_INET, SOCK_DGRAM, 0);
+    info.reciever = socket(AF_INET, SOCK_DGRAM, 0);
+    if((info.sender == -1) || (info.reciever == -1))
+        {
+            printf("ERROR: No se pudieron obtener descriptores de sockets\n");
+            abort();
+        }
+
+
     pthread_t sender, listener;
-    if(pthread_create(&sender, NULL, senderThread, NULL) != 0)
+
+    if(pthread_create(&sender, NULL, senderThread, (void*)&info) != 0)
         {
             printf("Error al crear Thread Sender\n");
             exit(1);
         }
-    if(pthread_create(&listener, NULL, recieverThread, NULL) != 0)
+
+     /* Creacion de argumentos */
+
+    if(pthread_create(&listener, NULL, recieverThread, (void*)&info) != 0)
         {
             printf("Error al crear Thread Listener\n");
             exit(1);
@@ -90,17 +113,9 @@ void* senderThread(void* arg)
     printf("Thread Client Started on port: %d\n", remote_port);
 
     // Descriptor del socket
-    int sockfd;
+    int sockfd = ((SocketsInfo*) arg)->sender;
     // Direccion del socket
     struct sockaddr_in servaddr;
-
-    // Se abre el socket para INET, tipo UDP y devuelve el descriptor del socket
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sockfd == -1)
-        {
-            printf("ERROR al crear descriptor en internalClient\n");
-            pthread_exit((void*)1);
-        }
 
     /* Rellena con \0 sizeof(serveraddr) bytes a partir de serveraddr
     * para evitar errores en la informacion */
@@ -145,11 +160,9 @@ void* senderThread(void* arg)
 void* recieverThread(void* arg)
 {
     printf("Thread Server Started on port: %d\n", local_port);
-    int sockfd, n;
+    int sockfd = ((SocketsInfo*) arg)->reciever, n;
     struct sockaddr_in servaddr, cliaddr;
     socklen_t len;
-
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     bzero(&servaddr, sizeof(servaddr));
     // Requisitos minimos de serveaddr para uso posterior
