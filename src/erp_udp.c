@@ -9,7 +9,13 @@
 
 #define MSG_SIZE 1500
 #define LIST_SIZE 10000
-// Datos mas alla de MSG_SIZE se pierden
+
+/* Estructura que describe un paquete recibido / enviado */
+typedef struct pkg
+{
+  char msg[MSG_SIZE];
+  time_t timestamp;
+} datagram;
 
 int delay_avg, delay_variation;
 int loss_percent, local_port, remote_port;
@@ -17,13 +23,14 @@ char remote_host[30] = "127.0.0.1";
 
 void* senderThread(void*);
 void* recieverThread(void*);
-void initList(char**, int);
-void lagger(char*, double, double);
+void initList(datagram**, int);
+void lagger(double, double);
+int randsafe(double *);
 
 char mesg[MSG_SIZE] = "";
 
 pthread_mutex_t listMutex = PTHREAD_MUTEX_INITIALIZER;
-char* mesgList[LIST_SIZE];
+datagram* mesgList[LIST_SIZE];
 int mesgIndex = 0, sendIndex = 0;
 
 /* Declaraciones implicitas para suprimir warnings */
@@ -62,7 +69,7 @@ int main(int argc, char* argv[])
     int i;
     for(i=0; i<LIST_SIZE; i++)
         {
-            printf("%s\n", mesgList[i]);
+            printf("%s\n", mesgList[i]->msg);
         }
 
 
@@ -112,20 +119,22 @@ void* senderThread(void* arg)
 
     for(;;)
         {
-            if(strcmp(mesgList[sendIndex], "") != 0)
+            if(NULL != mesgList[sendIndex])
                 {
                     int error;
                     if ((error = pthread_mutex_lock( &listMutex )) != 0)
-                        printf("ERROR: %d\n", error);
+                        fprintf(stderr,"ERROR: %d\n", error);
                     else
                         {
-                            strcpy(mesg, mesgList[sendIndex]);
-                            lagger(mesg, delay_avg, delay_variation);
+                            strcpy(mesg, mesgList[sendIndex]->msg);
+                            lagger(delay_avg, delay_variation);
 
                             if(strcmp(mesg, "") != 0)
                                 sendto(sockfd, mesg, strlen(mesg), 0,(struct sockaddr*) &servaddr, sizeof(servaddr));
-                            printf("Mesg: %s\nmesgList[%d]: %s\n", mesg, sendIndex, mesgList[sendIndex]);
-                            mesgList[sendIndex] = "";
+                            printf("Mesg: %s\nmesgList[%d]: %s\nOutbound timestamp: %s\n", mesg, sendIndex,
+                                mesgList[sendIndex]->msg, ctime(&mesgList[sendIndex]->timestamp));
+                            free(mesgList[sendIndex]);
+                            mesgList[sendIndex] = NULL;
                             sendIndex = (sendIndex+1) % LIST_SIZE;
                         }
                     pthread_mutex_unlock( &listMutex );
@@ -161,11 +170,28 @@ void* recieverThread(void* arg)
 
             int error;
             if ((error = pthread_mutex_lock( &listMutex )) != 0)
-                printf("ERROR: %d\n", error);
+                fprintf(stderr,"ERROR: %d\n", error);
             else
                 {
-                  if (strcmp(mesgList[mesgIndex],"") == 0)
-                    mesgList[mesgIndex] = mesg;
+                  if (NULL == mesgList[mesgIndex])
+                  {
+                    datagram *n = malloc(sizeof(datagram));
+                    if (NULL == n)
+                    {
+                      fprintf(stderr,"ERROR: Couldn't allocate memory for datagram\n");
+                      abort();
+                    }
+                    strcpy(n->msg,mesg);
+                    n->timestamp = time(NULL);
+                    mesgList[mesgIndex] = n;
+
+                    printf("-------------------------------------------------------\n");
+                    printf("Received the following:\n");
+                    printf("%s\n",mesgList[mesgIndex]->msg);
+                    printf("Inbound timestamp: %s\n", ctime(&mesgList[mesgIndex]->timestamp));
+                    printf("-------------------------------------------------------\n");
+
+                  }
                   else
                   {
                     printf("Buffer pos %d overwritten\n",mesgIndex);
@@ -175,63 +201,57 @@ void* recieverThread(void* arg)
 
                 }
             pthread_mutex_unlock( &listMutex );
-
-            printf("-------------------------------------------------------\n");
-            mesg[n] = 0;
-            printf("Received the following:\n");
-            printf("%s",mesg);
-            printf("-------------------------------------------------------\n");
         }
     printf("Thread Server ENDED\n");
     pthread_exit((void*)0);
 }
 
-void initList(char** list, int size)
+void initList(datagram ** list, int size)
 {
-    int i;
-    for(i=0; i<size; i++)
-        {
-            list[i] = "";
-        }
+  int i;
+  for(i=0; i<size; i++)
+  {
+    list[i] = NULL;
+  }
 }
 
-void lagger(char* mesg, double avg, double variation)
+void lagger(double avg, double variation)
 {
-    double random;
-    double delay;
+  double random;
+  double delay;
 
-    if(randsafe(&random) != 0)
-        return;
-    printf("Random created = %f\n", random);
+  if(randsafe(&random) != 0)
+    return;
+  printf("Random created = %f\n", random);
 
-    /* Le doy un 2.5% mas de rango a la variacion total hacia arriba y hacia abajo */
-    double fixed_variation = variation*(1 + (double)loss_percent/100);
-    delay = 2*random*fixed_variation + avg - fixed_variation;
+  /* Le doy un 2.5% mas de rango a la variacion total hacia arriba y hacia abajo */
+  double fixed_variation = variation*(1 + (double)loss_percent/100);
+  delay = 2*random*fixed_variation + avg - fixed_variation;
 
-    if(delay > avg + variation || delay < avg - variation)
-        {
-            strcpy(mesg, "");
-            printf("**********************Packet Loss*********************\n");
-        }
-    printf("Delay: %f\n", delay);
+  if(delay > avg + variation || delay < avg - variation)
+  {
+    strcpy(mesg, "");
+    printf("**********************Packet Loss*********************\n");
+  }
+  printf("Delay: %f\n", delay);
 
-    if(delay > 1000)
-        {
-            /* Segun documentacion, no llamar a usleep con mas de 1M us*/
-            printf("Too much lag\n");
-            return;
-        }
+  if(delay > 1000)
+  {
+    /* Segun documentacion, no llamar a usleep con mas de 1M us*/
+    printf("Too much lag\n");
+    return;
+  }
 
-    usleep((int) delay *1000);
+  usleep((int) delay *1000);
 }
 
 int randsafe(double *ranp)
 {
-    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
-    int error= 0;
+  static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+  int error= 0;
 
-    if ((error = pthread_mutex_lock(&lock)))
-        return error;
-    *ranp = (double)rand()/RAND_MAX;
-    return pthread_mutex_unlock(&lock);
+  if ((error = pthread_mutex_lock(&lock)))
+    return error;
+  *ranp = (double)rand()/RAND_MAX;
+  return pthread_mutex_unlock(&lock);
 }
