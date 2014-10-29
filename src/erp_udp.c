@@ -66,12 +66,6 @@ int main(int argc, char* argv[])
         }
     printf("Delay_avg: %d\nDelay_variation: %d\nLoss_percent: %d\nLocal_port: %d\nRemote_host: %s\nRemote_port: %d\n", delay_avg, delay_variation, loss_percent, local_port, remote_host, remote_port);
     initList(mesgList, LIST_SIZE);
-    int i;
-    for(i=0; i<LIST_SIZE; i++)
-        {
-            printf("%s\n", mesgList[i]->msg);
-        }
-
 
     /* Creacion de los Thread */
     pthread_t sender, listener;
