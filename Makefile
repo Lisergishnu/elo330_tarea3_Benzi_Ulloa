@@ -9,6 +9,6 @@ server:
 client:
 	build/udp_client 127.0.0.1
 run:
-	build/erp_udp 100 5 5 9000 9001
+	build/erp_udp 500 5 5 9000 9001
 clean:
 	rm -rf build/

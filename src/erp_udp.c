@@ -5,9 +5,10 @@
 #include <pthread.h>
 #include <string.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 
-#define MSG_SIZE 10
-#define LIST_SIZE 10
+#define MSG_SIZE 1500
+#define LIST_SIZE 10000
 // Datos mas alla de MSG_SIZE se pierden
 
 int delay_avg, delay_variation;
@@ -25,6 +26,7 @@ pthread_mutex_t listMutex = PTHREAD_MUTEX_INITIALIZER;
 char* mesgList[LIST_SIZE];
 int mesgIndex = 0, sendIndex = 0;
 
+/* Declaraciones implicitas para suprimir warnings */
 int main(int argc, char* argv[])
 {
     /* Main funcion, aqui deberia ir la creacion de hebras, a una hebra se le asigna el cliente Interno
@@ -66,7 +68,6 @@ int main(int argc, char* argv[])
 
     /* Creacion de los Thread */
     pthread_t sender, listener;
-    int t_s, t_l;
     if(pthread_create(&sender, NULL, senderThread, NULL) != 0)
         {
             printf("Error al crear Thread Sender\n");
@@ -79,6 +80,7 @@ int main(int argc, char* argv[])
         }
     pthread_join(sender, NULL);
     pthread_join(listener, NULL);
+    return 0;
 }
 
 void* senderThread(void* arg)
@@ -87,12 +89,9 @@ void* senderThread(void* arg)
     printf("Thread Client Started on port: %d\n", remote_port);
 
     // Descriptor del socket
-    int sockfd, n, j=0;
+    int sockfd;
     // Direccion del socket
-    struct sockaddr_in servaddr, cliaddr;
-
-    // Buffer
-    char recvline[MSG_SIZE];
+    struct sockaddr_in servaddr;
 
     // Se abre el socket para INET, tipo UDP y devuelve el descriptor del socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -223,7 +222,7 @@ void lagger(char* mesg, double avg, double variation)
             return;
         }
 
-    usleep((int) random*1000);
+    usleep((int) delay *1000);
 }
 
 int randsafe(double *ranp)
