@@ -208,7 +208,7 @@ void* recieverThread(void* arg)
 {
 	SocketsInfo* info = (SocketsInfo*) arg;
 	printf("Thread Server Started on port: %d\n", info->local_port);
-	int sockfd = info->reciever, n;
+	int sockfd = info->reciever, bytesRecieved;
 	struct sockaddr_in servaddr, cliaddr;
 	socklen_t len;
 
@@ -222,45 +222,45 @@ void* recieverThread(void* arg)
 	bind(sockfd,(struct sockaddr*) &servaddr, sizeof(servaddr));
 
 	for(;;)
+	{
+		len = sizeof(cliaddr);
+		bytesRecieved = recvfrom(sockfd,mesg,MSG_SIZE,0,(struct sockaddr *)&cliaddr,&len);
+		mesg[bytesRecieved] = '\0'; /* Sanitize message */
+		int error;
+		if ((error = pthread_mutex_lock( &listMutex )) != 0)
+			fprintf(stderr,"ERROR: %d\n", error);
+		else
 		{
-			len = sizeof(cliaddr);
-			n = recvfrom(sockfd,mesg,MSG_SIZE,0,(struct sockaddr *)&cliaddr,&len);
-			//char ack[20] = "erp_udp ACK\n";
-			//sendto(sockfd, ack, 20, 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
-			int error;
-			if ((error = pthread_mutex_lock( &listMutex )) != 0)
-				fprintf(stderr,"ERROR: %d\n", error);
-			else
+			if (NULL == info->mesgList[mesgIndex])
+			{
+				datagram *n = malloc(sizeof(datagram));
+				if (NULL == n)
 				{
-					if (NULL == info->mesgList[mesgIndex])
-						{
-							datagram *n = malloc(sizeof(datagram));
-							if (NULL == n)
-								{
-									fprintf(stderr,"ERROR: Couldn't allocate memory for datagram\n");
-									abort();
-								}
-							strcpy(n->msg,mesg);
-							clock_gettime(CLOCK_MONOTONIC,&n->timestamp);
-							info->mesgList[mesgIndex] = n;
-
-							printf("-------------------------------------------------------\n");
-							printf("Received the following:\n");
-							printf("%s",info->mesgList[mesgIndex]->msg);
-							printf("Inbound timestamp: %lld.%09ld [s]\n", (long long) info->mesgList[mesgIndex]->timestamp.tv_sec, info->mesgList[mesgIndex]->timestamp.tv_nsec);
-							printf("-------------------------------------------------------\n");
-
-						}
-					else
-						{
-							printf("Buffer pos %d overwritten\n",mesgIndex);
-							sendIndex = (sendIndex+1) % LIST_SIZE;
-						}
-					mesgIndex=(mesgIndex+1)%LIST_SIZE;
-
+					fprintf(stderr,"ERROR: Couldn't allocate memory for datagram\n");
+					abort();
 				}
-			pthread_mutex_unlock( &listMutex );
+				strcpy(n->msg,mesg);
+				clock_gettime(CLOCK_MONOTONIC,&n->timestamp);
+				info->mesgList[mesgIndex] = n;
+
+				printf("-------------------------------------------------------\n");
+				printf("Received the following:\n");
+				printf("Bytes recieved: %d\n",bytesRecieved);
+				printf("%s",info->mesgList[mesgIndex]->msg);
+				printf("Inbound timestamp: %lld.%09ld [s]\n", (long long) info->mesgList[mesgIndex]->timestamp.tv_sec, info->mesgList[mesgIndex]->timestamp.tv_nsec);
+				printf("-------------------------------------------------------\n");
+
+			}
+			else
+			{
+				printf("Buffer pos %d overwritten\n",mesgIndex);
+				sendIndex = (sendIndex+1) % LIST_SIZE;
+			}
+			mesgIndex=(mesgIndex+1)%LIST_SIZE;
+
 		}
+		pthread_mutex_unlock( &listMutex );
+	}
 	printf("Thread Server ENDED\n");
 	pthread_exit((void*)0);
 }
@@ -269,9 +269,9 @@ void initList(datagram** list, int size)
 {
 	int i;
 	for(i=0; i<size; i++)
-		{
-			list[i] = NULL;
-		}
+	{
+		list[i] = NULL;
+	}
 }
 
 void lagger(double avg, double variation)
@@ -288,18 +288,18 @@ void lagger(double avg, double variation)
 	delay = 2*random*fixed_variation + avg - fixed_variation;
 
 	if(delay > avg + variation || delay < avg - variation)
-		{
-			strcpy(mesg, "");
-			printf("**********************Packet Loss*********************\n");
-		}
+	{
+		strcpy(mesg, "");
+		printf("**********************Packet Loss*********************\n");
+	}
 	printf("Delay: %f\n", delay);
 
 	if(delay > 1000)
-		{
-			/* Segun documentacion, no llamar a usleep con mas de 1M us*/
-			printf("Too much lag\n");
-			return;
-		}
+	{
+		/* Segun documentacion, no llamar a usleep con mas de 1M us*/
+		printf("Too much lag\n");
+		return;
+	}
 
 	usleep((int) delay *1000);
 }
