@@ -16,3 +16,5 @@ run:
 	build/erp_udp 500 5 5 9000 9001
 clean:
 	rm -rf build/
+astyle:
+	astyle --recursive --style=gnu --indent=tab *.c
