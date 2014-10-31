@@ -18,10 +18,10 @@ int main(int argc, char**argv)
    bzero(&servaddr,sizeof(servaddr));
    servaddr.sin_family = AF_INET;
    servaddr.sin_addr.s_addr=htonl(INADDR_ANY);
-   servaddr.sin_port=htons(PORT);
+   servaddr.sin_port=htons(atoi(argv[1]));
    bind(sockfd,(struct sockaddr *)&servaddr,sizeof(servaddr));
 
-   printf("Server started on port: %d\n", PORT);
+   printf("Server started on port: %d\n", atoi(argv[1]));
    for (;;)
    {
       len = sizeof(cliaddr);

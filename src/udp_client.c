@@ -13,9 +13,9 @@ int main(int argc, char* argv[])
    char sendline[1000];
    char recvline[1000];
 
-   if (argc != 2)
+   if (argc != 3)
    {
-      printf("usage:  udpcli <IP address>\n");
+      printf("usage:  udpcli <IP address> <Port>\n");
       exit(1);
    }
 
@@ -24,9 +24,9 @@ int main(int argc, char* argv[])
    bzero(&servaddr,sizeof(servaddr));
    servaddr.sin_family = AF_INET;
    servaddr.sin_addr.s_addr=inet_addr(argv[1]);
-   servaddr.sin_port=htons(PORT);
+   servaddr.sin_port=htons(atoi(argv[2]));
    
-   printf("Client started on port: %d\n", PORT);
+   printf("Client started on port: %d\n", atoi(argv[2]));
    while (fgets(sendline, 10000,stdin) != NULL)
    {
       sendto(sockfd,sendline,strlen(sendline),0,

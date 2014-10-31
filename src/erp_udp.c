@@ -25,6 +25,7 @@ typedef struct ra
     char remote_host[30];
     int local_port;
     int remote_port;
+	datagram* mesgList[LIST_SIZE];
 } SocketsInfo;
 
 int delay_avg, delay_variation;
@@ -39,7 +40,7 @@ int randsafe(double *);
 char mesg[MSG_SIZE] = "";
 
 pthread_mutex_t listMutex = PTHREAD_MUTEX_INITIALIZER;
-datagram* mesgList[LIST_SIZE];
+//datagram* mesgList[LIST_SIZE];
 int mesgIndex = 0, sendIndex = 0;
 
 /* Declaraciones implicitas para suprimir warnings */
@@ -76,13 +77,14 @@ int main(int argc, char* argv[])
             exit(1);
         }
     printf("Delay_avg: %d\nDelay_variation: %d\nLoss_percent: %d\nLocal_port: %d\nRemote_host: %s\nRemote_port: %d\n", delay_avg, delay_variation, loss_percent, info.local_port, info.remote_host, info.remote_port);
-    initList(mesgList, LIST_SIZE);
+    initList(info.mesgList, LIST_SIZE);
 
     /* Creacion de los Thread */
 
     // Se abre el socket para INET, tipo UDP y devuelve el descriptor del socket
     info.sender = socket(AF_INET, SOCK_DGRAM, 0);
     info.reciever = socket(AF_INET, SOCK_DGRAM, 0);
+	
     if((info.sender == -1) || (info.reciever == -1))
         {
             printf("ERROR: No se pudieron obtener descriptores de sockets\n");
@@ -105,6 +107,40 @@ int main(int argc, char* argv[])
             printf("Error al crear Thread Listener\n");
             exit(1);
         }
+		
+	// HILOS DE VUELTA CODIGO BASOFIA
+	SocketsInfo info2;
+	initList(info2.mesgList, LIST_SIZE);
+	// Info invertido, para el thread de vuelta	
+	info2.sender = socket(AF_INET, SOCK_DGRAM, 0);
+	info2.reciever = socket(AF_INET, SOCK_DGRAM, 0);
+	info2.local_port = 9002;
+	strcpy(info2.remote_host, info.remote_host);
+	info2.remote_port = 9003;
+	if((info2.sender == -1) || (info2.reciever == -1))
+	{
+		printf("ERROR: No se pudieron obtener descriptores de sockets2\n");
+		abort();
+	}
+
+    pthread_t sender2, listener2;
+
+    if(pthread_create(&sender2, NULL, senderThread, (void*)&info2) != 0)
+        {
+            printf("Error al crear Thread Sender2\n");
+            exit(1);
+        }
+
+     /* Creacion de argumentos */
+
+    if(pthread_create(&listener2, NULL, recieverThread, (void*)&info2) != 0)
+        {
+            printf("Error al crear Thread Listener2\n");
+            exit(1);
+        }
+    pthread_join(sender2, NULL);
+    pthread_join(listener2, NULL);
+	//----------
     pthread_join(sender, NULL);
     pthread_join(listener, NULL);
     return 0;
@@ -133,14 +169,14 @@ void* senderThread(void* arg)
 
     for(;;)
         {
-            if(NULL != mesgList[sendIndex])
+            if(NULL != info->mesgList[sendIndex])
                 {
                     int error;
                     if ((error = pthread_mutex_lock( &listMutex )) != 0)
                         fprintf(stderr,"ERROR: %d\n", error);
                     else
                         {
-                            strcpy(mesg, mesgList[sendIndex]->msg);
+                            strcpy(mesg, info->mesgList[sendIndex]->msg);
                             lagger(delay_avg, delay_variation);
 
                             if(strcmp(mesg, "") != 0)
@@ -150,9 +186,9 @@ void* senderThread(void* arg)
                             clock_gettime(CLOCK_MONOTONIC,&outTime);
 
                             printf("Mesg: %s\nmesgList[%d]: %s\nOutbound timestamp: %lld.%09ld [s]\n", mesg, sendIndex,
-                                   mesgList[sendIndex]->msg, (long long) outTime.tv_sec,outTime.tv_nsec);
-                            free(mesgList[sendIndex]);
-                            mesgList[sendIndex] = NULL;
+                                   info->mesgList[sendIndex]->msg, (long long) outTime.tv_sec,outTime.tv_nsec);
+                            free(info->mesgList[sendIndex]);
+                            info->mesgList[sendIndex] = NULL;
                             sendIndex = (sendIndex+1) % LIST_SIZE;
                         }
                     pthread_mutex_unlock( &listMutex );
@@ -190,7 +226,7 @@ void* recieverThread(void* arg)
                 fprintf(stderr,"ERROR: %d\n", error);
             else
                 {
-                    if (NULL == mesgList[mesgIndex])
+                    if (NULL == info->mesgList[mesgIndex])
                         {
                             datagram *n = malloc(sizeof(datagram));
                             if (NULL == n)
@@ -200,12 +236,12 @@ void* recieverThread(void* arg)
                                 }
                             strcpy(n->msg,mesg);
                             clock_gettime(CLOCK_MONOTONIC,&n->timestamp);
-                            mesgList[mesgIndex] = n;
+                            info->mesgList[mesgIndex] = n;
 
                             printf("-------------------------------------------------------\n");
                             printf("Received the following:\n");
-                            printf("%s",mesgList[mesgIndex]->msg);
-                            printf("Inbound timestamp: %lld.%09ld [s]\n", (long long) mesgList[mesgIndex]->timestamp.tv_sec, mesgList[mesgIndex]->timestamp.tv_nsec);
+                            printf("%s",info->mesgList[mesgIndex]->msg);
+                            printf("Inbound timestamp: %lld.%09ld [s]\n", (long long) info->mesgList[mesgIndex]->timestamp.tv_sec, info->mesgList[mesgIndex]->timestamp.tv_nsec);
                             printf("-------------------------------------------------------\n");
 
                         }
@@ -223,7 +259,7 @@ void* recieverThread(void* arg)
     pthread_exit((void*)0);
 }
 
-void initList(datagram ** list, int size)
+void initList(datagram** list, int size)
 {
     int i;
     for(i=0; i<size; i++)
