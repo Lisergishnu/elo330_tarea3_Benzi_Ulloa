@@ -32,7 +32,7 @@ Dentro de nuestra tarea se adjuntan dos programas externos, un cliente y un serv
 
     $ make peerA
 
-3.- En una terminal aparte, correr un segundo UDP,
+3.- En una terminal aparte, correr un segundo peer UDP,
 
     $ make peerB
 
