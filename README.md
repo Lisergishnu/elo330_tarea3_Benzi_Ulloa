@@ -28,13 +28,13 @@ Dentro de nuestra tarea se adjuntan dos programas externos, un cliente y un serv
 
     $ make
 
-2.- Correr el cliente UDP,
+2.- Correr un primer peer UDP,
 
-    $ make client
+    $ make peerA
 
-3.- En una terminal aparte, correr el servidor UDP,
+3.- En una terminal aparte, correr un segundo UDP,
 
-    $ make server
+    $ make peerB
 
 4.- Finalmente, en una tercera terminal correr el programa **erp_udp**,
 
