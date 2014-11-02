@@ -90,8 +90,6 @@ int main(int argc, char* argv[])
 			printf("ERROR: No se pudieron obtener descriptores de sockets\n");
 			abort();
 		}
-
-
 	pthread_t sender, listener;
 
 	if(pthread_create(&sender, NULL, senderThread, (void*)&info) != 0)
@@ -108,21 +106,23 @@ int main(int argc, char* argv[])
 			exit(1);
 		}
 
-	// HILOS DE VUELTA CODIGO BASOFIA
+	// HILOS de datos en sentido contrario
 	SocketsInfo info2;
 	initList(info2.mesgList, LIST_SIZE);
 	// Info invertido, para el thread de vuelta
 	info2.sender = socket(AF_INET, SOCK_DGRAM, 0);
 	info2.reciever = socket(AF_INET, SOCK_DGRAM, 0);
 	strcpy(info2.remote_host, "127.0.0.1"); // Se asume que siempre se usa este programa en la maquina local
-	/*if(strcmp(info.remote_host, info2.remote_host) != 0){
+	
+	// En caso que la ip destino no sea la misma de origen (maquina local), invertir los puertos.
+	if(strcmp(info.remote_host, info2.remote_host) != 0){
 		info2.local_port = info2.remote_port;
 		info2.remote_port = info2.local_port;
 	}
-	else{*/
-	info2.local_port = 9002;
-	info2.remote_port = 9003;
-	//}
+	else{
+		info2.local_port = 9002;
+		info2.remote_port = 9003;
+	}
 	if((info2.sender == -1) || (info2.reciever == -1))
 		{
 			printf("ERROR: No se pudieron obtener descriptores de sockets2\n");
@@ -225,8 +225,8 @@ void* recieverThread(void* arg)
 		{
 			len = sizeof(cliaddr);
 			n = recvfrom(sockfd,mesg,MSG_SIZE,0,(struct sockaddr *)&cliaddr,&len);
-			char ack[10] = "Recieved\n";
-			sendto(sockfd, ack, 10, 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
+			//char ack[20] = "erp_udp ACK\n";
+			//sendto(sockfd, ack, 20, 0, (struct sockaddr*) &cliaddr, sizeof(cliaddr));
 			int error;
 			if ((error = pthread_mutex_lock( &listMutex )) != 0)
 				fprintf(stderr,"ERROR: %d\n", error);
