@@ -22,7 +22,7 @@ Nuestra metodología para generar el retraso fue mediante la función de sistema
 Ejemplo
 -------
 
-Dentro de nuestra tarea se adjunta un programa externo que funcionar como cliente y servidor UDP, a manera de verificar la funcionalidad del programa **erp_udp**. Para hacer esto se describe el siguiente procedimiento:
+Dentro de nuestra tarea se adjunta un programa externo que funciona como cliente y servidor UDP, a manera de verificar la funcionalidad del programa **erp_udp**. Para hacer esto se describe el siguiente procedimiento:
 
 1.- Compilar el programa,
 
