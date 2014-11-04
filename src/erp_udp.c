@@ -203,6 +203,8 @@ void* senderThread(void* arg)
         printf("mesgList[%d]: %s\nOutbound timestamp: %lld.%09ld [s]\n", sendIndex,
             temp.msg, (long long) outTime.tv_sec,outTime.tv_nsec);
       }
+else
+        pthread_mutex_unlock( &listMutex );
     }
   }
   printf("Thread Client ENDED\n");
