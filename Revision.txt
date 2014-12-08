@@ -1,0 +1,22 @@
+Revisión del ayudante:
+Marco Benzi, Jaime Ulloa
+
+Documentación (30%):				
+Compilación (10%):					
+Ejecución (60%):
+* Conexión Cliente-servidor (20%):	
+* Implementación del retardo (30%):	
+* Implementación del error (10%):	
+-----------------------------
+Total:								
+
+MÉTODO DE PRUEBA
+* Se usó el método incluido en el README para probar el programa.
+
+------------------------------------------------------------------------------
+Comentarios:
+* Por algún motivo no me funciona el asunto del porcentaje de pérdidas.
+
+Sugerencias:
+* Buen detalle usar licencia GPL para su código.
+* Agradezco muchísimo que se hayan molestado en incluir su programa de prueba.
